@@ -8,7 +8,7 @@
 #define NTP_REFRESH_INTERVAL_SEC 60*60
 
 // Timezone difference from GMT, expressed in seconds
-#define TIMEZONE_DELTA_SEC 3600 * -5
+#define TIMEZONE_DELTA_SEC 3600 * -7
 // DST delta to apply
 #define TIMEZONE_DST_SEC 3600
 
@@ -20,9 +20,7 @@
 #define PANEL_WIDTH 64
 #define PANEL_HEIGHT 64
 
-#define BRIGHTNESS 16   // 0-64
-#define NIGHT_MODE_TIME 1   // Time to lower brightness
-#define DAY_MODE_TIME 8   // Time to increase brightness
+#define BRIGHTNESS 24   // 0-64
 
 // Clock
 #define CLOCK_X 6
@@ -44,6 +42,10 @@
 //Width and height are for both DATE and DOW
 #define DATE_WIDTH 52
 #define DATE_HEIGHT 18
+
+// Light Sensor
+#define I2C_SCL 15
+#define I2C_SDA 13
 
 // Weather sensor data
 #define SENSOR_DATA_X 0

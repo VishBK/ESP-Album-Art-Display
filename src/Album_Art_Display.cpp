@@ -9,6 +9,7 @@
 #include <Ticker.h>
 #include <Wire.h>
 #include <esp_task_wdt.h>
+#include <BH1750.h>
 
 #include "LastFMClient.h"
 #include "common.h"
@@ -31,6 +32,7 @@ uint8_t prevHour;
 unsigned long prevEpoch;
 unsigned long lastNTPUpdate;
 unsigned long lastWeatherUpdate;
+unsigned long lastLuxUpdate;
 
 bool blinkOn;
 bool isClock = true; // Whether the clock should be displayed or not
@@ -41,13 +43,15 @@ String LASTFM_USERNAME = USERNAME;
 
 // Globals
 long callFrequency = 5000;  // How often to check LastFM in ms
-long stopDuration = 1000*60*5;  // When to stop displaying cover art after stopping scrobbling in ms
+long stopDuration = 1000;  // When to stop displaying cover art after stopping scrobbling in ms
 
 LastFMClient client(LASTFM_USERNAME, LASTFM_KEY);
 
 void displayUpdater();
 
 uint8_t* prevImage = nullptr;
+
+BH1750 lightMeter;
 
 // Draws a bitmap
 void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
@@ -253,6 +257,13 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
+    Wire.begin(I2C_SDA, I2C_SCL);
+    if (lightMeter.begin()) {
+        ESP_LOGV("BH1750", "BH1750 initialised");
+    } else {
+        ESP_LOGE("BH1750", "Error initialising BH1750");
+    }
+
     diplayInit();
 
     logStatusMessage("Setting up LastFM Client...");
@@ -281,11 +292,6 @@ void setup() {
     // displayTicker.attach_ms(30, displayUpdater);
 
     if (!getLocalTime(&timeinfo)) logStatusMessage("Failed to get time!");
-    if (timeinfo.tm_hour >= NIGHT_MODE_TIME and timeinfo.tm_hour < DAY_MODE_TIME) {
-        display->setPanelBrightness(BRIGHTNESS*0.25);    // Quarter brightness at night
-    } else {
-        display->setPanelBrightness(BRIGHTNESS);        // Full brightness during the day
-    }
     
     xTaskCreatePinnedToCore(
         downloadImage,  /* Task function. */
@@ -327,13 +333,17 @@ void loop() {
         displayUpdater();
     }
 
-    if (prevHour != timeinfo.tm_hour) {
-        prevHour = timeinfo.tm_hour;
-        if (prevHour >= NIGHT_MODE_TIME and prevHour < DAY_MODE_TIME) {
-            display->setPanelBrightness(BRIGHTNESS*0.25);    // Quarter brightness at night
-        } else {
-            display->setPanelBrightness(BRIGHTNESS);        // Full brightness during the day
-        }
+
+    if (millis() - lastLuxUpdate > 1000*1) {
+        float lux = lightMeter.readLightLevel();
+        uint8_t curBrightness = min(max(static_cast<int>((lux/2.)+0.5), 5), 64);    // Set max between 5-64
+        display->setPanelBrightness(curBrightness);
+        // Serial.print("Lux: ");
+        // Serial.println(lux);
+
+        // Serial.print("Brightness: ");
+        // Serial.println(curBrightness);
+        lastLuxUpdate = millis();
     }
 
     // Reset the watchdog timer as long as the main task is running

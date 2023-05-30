@@ -101,7 +101,7 @@ uint16_t LastFMClient::getReqAlbum() {
     JsonObject filter_recenttracks = filter["recenttracks"]["track"].createNestedObject();
     filter_recenttracks["image"][0]["#text"] = true;
     filter_recenttracks["@attr"]["nowplaying"] = true;
-    serializeJson(filter, Serial);
+    // serializeJson(filter, Serial);   // Prints JSON to Serial
 
     StaticJsonDocument<1536> doc;
     DeserializationError error = deserializeJson(doc, resp, DeserializationOption::Filter(filter));
@@ -122,8 +122,8 @@ uint16_t LastFMClient::getReqAlbum() {
     // imageLink = doc["url"].as<const char*>();
     // data->image174Href = parsed["image"][2]["#text"];
     // data->image300Href = parsed["image"][3]["#text"];
-    serializeJson(parsed, Serial);
-    
+
+    // serializeJson(parsed, Serial);
     ESP_LOGV("lastfmAPI", "\nParsed JSON");
 
     return httpResponseCode;
