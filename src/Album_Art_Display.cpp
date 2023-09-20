@@ -43,7 +43,9 @@ String LASTFM_USERNAME = USERNAME;
 
 // Globals
 long callFrequency = 5000;  // How often to check LastFM in ms
-long stopDuration = 1000;  // When to stop displaying cover art after stopping scrobbling in ms
+long stopDuration = 1000;   // When to stop displaying cover art after stopping scrobbling in ms
+long lightCheck = 1000;     // How often to check for ambient light to adjust the display brightness
+int8_t lastBrightness = 0;
 
 LastFMClient client(LASTFM_USERNAME, LASTFM_KEY);
 
@@ -52,6 +54,16 @@ void displayUpdater();
 uint8_t* prevImage = nullptr;
 
 BH1750 lightMeter;
+
+// Fades brightness to new brightness value of display
+void fadeBrightness(int8_t curBrightness, int8_t newBrightness) {
+    int8_t brightnessDir = ((curBrightness-newBrightness) < 0) - ((curBrightness-newBrightness) > 0);
+    while (curBrightness != newBrightness) {
+        curBrightness += brightnessDir;
+        display->setPanelBrightness(curBrightness);
+        delay(1);
+    }
+}
 
 // Draws a bitmap
 void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
@@ -71,7 +83,8 @@ void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t c
 }
 
 // Draws the bitmap using RGB565
-void drawBMP_565(uint8_t* image, int xpos, int ypos) {
+void drawBMP_565(uint8_t* image, uint16_t xpos, uint16_t ypos) {
+    display->clearScreen();
     ESP_LOGI("draw", "Generating Image...");
 
     uint8_t* curPixel = image;
@@ -91,6 +104,7 @@ void drawBMP_565(uint8_t* image, int xpos, int ypos) {
                 // float h = hsl_color.H;
                 // float s = hsl_color.S;
                 // float l = hsl_color.L;
+                ESP_LOGV("draw", "R: %u G: %u B: %u", r, g, b);
 
                 uint8_t prev_r = 0;
                 uint8_t prev_g = 0;
@@ -141,7 +155,7 @@ void drawBMP_565(uint8_t* image, int xpos, int ypos) {
 }
 
 //Draws the bitmap using RGB888
-void drawBMP_888(uint8_t* image, int xpos, int ypos) {
+void drawBMP_888(uint8_t* image, uint16_t xpos, uint16_t ypos) {
     // while ( JpegDec.read() == 1) {
     //     uint16_t *pImg;
     //     pImg = JpegDec.pImage;
@@ -251,12 +265,14 @@ void downloadImage(void* pvParameters) {
 }
 
 void setup() {
-    // Initialize serial and wait for port to open
+    // Initialize serial
     Serial.begin(115200);
-    delay(3000);
+
+    // Turn off blue LED
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
+    // I2C for light sensor
     Wire.begin(I2C_SDA, I2C_SCL);
     if (lightMeter.begin()) {
         ESP_LOGV("BH1750", "BH1750 initialised");
@@ -265,16 +281,37 @@ void setup() {
     }
 
     diplayInit();
+    display->setRotation(3);
 
-    logStatusMessage("Setting up LastFM Client...");
+    // Serial.println("Fill screen: RED");
+    // display->fillScreenRGB888(255, 0, 0);
+    // delay(1000);
+
+    // Serial.println("Fill screen: GREEN");
+    // display->fillScreenRGB888(0, 255, 0);
+    // delay(1000);
+
+    // Serial.println("Fill screen: BLUE");
+    // display->fillScreenRGB888(0, 0, 255);
+    // delay(1000);
+
+    // Serial.println("Fill screen: Neutral White");
+    // display->fillScreenRGB888(64, 64, 64);
+    // delay(1000);
+    // display->clearScreen();
+
+    logStatusMessage("LastFM...");
     client.setup();
-    logStatusMessage("LastFM connected!");
 
-    logStatusMessage("Getting time...");
+    logStatusMessage("Time...");
     configTime(TIMEZONE_DELTA_SEC, TIMEZONE_DST_SEC, "ro.pool.ntp.org");
     lastNTPUpdate = millis();
-    logStatusMessage("Time acquired!");
-
+    if (getLocalTime(&timeinfo)) {
+        logStatusMessage("Time!");
+    } else {
+        logStatusMessage("No time!");
+    }
+    
     // logStatusMessage("Getting weather...");
     // getAccuWeatherData();
     // lastWeatherUpdate = millis();
@@ -290,9 +327,8 @@ void setup() {
     // displayWeatherData();
     
     // displayTicker.attach_ms(30, displayUpdater);
-
-    if (!getLocalTime(&timeinfo)) logStatusMessage("Failed to get time!");
     
+    // Put downloadImage function on seperate core
     xTaskCreatePinnedToCore(
         downloadImage,  /* Task function. */
         "Task1",        /* name of task. */
@@ -333,16 +369,15 @@ void loop() {
         displayUpdater();
     }
 
-
-    if (millis() - lastLuxUpdate > 1000*1) {
+    if (millis() - lastLuxUpdate > lightCheck) {
         float lux = lightMeter.readLightLevel();
-        uint8_t curBrightness = min(max(static_cast<int>((lux/2.)+0.5), 5), 64);    // Set max between 5-64
-        display->setPanelBrightness(curBrightness);
-        // Serial.print("Lux: ");
-        // Serial.println(lux);
-
-        // Serial.print("Brightness: ");
-        // Serial.println(curBrightness);
+        int8_t newBrightness = min(max(static_cast<int>((lux)+0), 5), 64);    // Set max between 5-64
+        if (newBrightness != lastBrightness) {   
+            ESP_LOGD("Light Sensor", "Lux: %f", lux);
+            ESP_LOGD("Light Sensor", "Brightness: %u", curBrightness);
+            fadeBrightness(lastBrightness, newBrightness);
+            lastBrightness = newBrightness;
+        }
         lastLuxUpdate = millis();
     }
 

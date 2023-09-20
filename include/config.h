@@ -8,7 +8,7 @@
 #define NTP_REFRESH_INTERVAL_SEC 60*60
 
 // Timezone difference from GMT, expressed in seconds
-#define TIMEZONE_DELTA_SEC 3600 * -7
+#define TIMEZONE_DELTA_SEC 3600 * -5
 // DST delta to apply
 #define TIMEZONE_DST_SEC 3600
 
@@ -18,9 +18,13 @@
 // Screen positioning settings
 // Panel size
 #define PANEL_WIDTH 64
-#define PANEL_HEIGHT 64
+#define PANEL_HEIGHT 64  	// Panel height of 64 will required PIN_E to be defined.
+#define PANELS_NUMBER 1 	// Number of chained panels, if just a single panel, obviously set to 1
 
-#define BRIGHTNESS 24   // 0-64
+#define PANE_WIDTH PANEL_WIDTH * PANELS_NUMBER
+#define PANE_HEIGHT PANEL_HEIGHT
+
+#define BRIGHTNESS 16   // 0-64
 
 // Clock
 #define CLOCK_X 6

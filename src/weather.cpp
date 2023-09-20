@@ -168,8 +168,8 @@ void displayWeatherForecast() {
 
 void displayWeatherData() {
   displayTodaysWeather();
-  displayTodaysTempRange();
-  displayWeatherForecast();
+//   displayTodaysTempRange();
+//   displayWeatherForecast();
 }
 
 //Source: https://github.com/witnessmenow/LED-Matrix-Display-Examples/blob/master/LED-Matrix-Mario-Display/LED-Matrix-Mario-Display.ino
@@ -276,7 +276,7 @@ void getAccuWeatherData() {
   doc.shrinkToFit();
 
   //Just in case we need to debug...
-  //serializeJsonPretty(doc, Serial);
+  serializeJsonPretty(doc, Serial);
 
   //Populate the variables: 
   minTempToday = round( double(doc["DailyForecasts"][0]["Temperature"]["Minimum"]["Value"]) );
