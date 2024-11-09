@@ -233,9 +233,9 @@ int accuWeatherIconMapping(int icon) {
 void getAccuWeatherData() {
   HTTPClient http;
   char url[256];
-  DynamicJsonDocument doc(16384); // Might be overkill, since the Accuweather JSONs are about 3-5K in length - but better safe...
+  JsonDocument doc;
 
-  StaticJsonDocument<300> filter;
+  JsonDocument filter;
   filter["DailyForecasts"][0]["Date"] = true;
   filter["DailyForecasts"][0]["Temperature"]["Minimum"]["Value"] = true;
   filter["DailyForecasts"][0]["Temperature"]["Maximum"]["Value"] = true;
@@ -300,8 +300,8 @@ void getOpenWeatherData() { /*
 
   
   // Allocate the largest possible document (platform dependent)
-  // DynamicJsonDocument doc(ESP.getMaxFreeBlockSize());
-  DynamicJsonDocument doc(8192);
+  // JsonDocument doc;
+  JsonDocument doc;
 
   http.useHTTP10(true);
   http.begin(url);

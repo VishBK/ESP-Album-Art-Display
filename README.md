@@ -13,5 +13,5 @@ Displays the currently playing album art from LastFM on a 64x64 LED display with
 | Total (without optionals) | $46.22 | |
 
 ## Libraries
-* [Mr. Faptastic's LED Matrix Library for ESP32s](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA)
+* [Mr. Codetastic's LED Matrix Library for ESP32s](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA)
 * [ArduinoJson](https://github.com/bblanchon/ArduinoJson)

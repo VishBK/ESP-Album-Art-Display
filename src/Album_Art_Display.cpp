@@ -45,7 +45,7 @@ String LASTFM_USERNAME = USERNAME;
 long callFrequency = 5000;  // How often to check LastFM in ms
 long stopDuration = 1000;   // When to stop displaying cover art after stopping scrobbling in ms
 long lightCheck = 1000;     // How often to check for ambient light to adjust the display brightness
-int8_t lastBrightness = 0;
+uint8_t lastBrightness = 0;
 
 LastFMClient client(LASTFM_USERNAME, LASTFM_KEY);
 
@@ -56,17 +56,19 @@ uint8_t* prevImage = nullptr;
 BH1750 lightMeter;
 
 // Fades brightness to new brightness value of display
-void fadeBrightness(int8_t curBrightness, int8_t newBrightness) {
-    int8_t brightnessDir = ((curBrightness-newBrightness) < 0) - ((curBrightness-newBrightness) > 0);
+void fadeBrightness(uint8_t curBrightness, uint8_t newBrightness, uint16_t fadeDuration=0) {
+    int8_t brightnessDif = (curBrightness-newBrightness);
+    int8_t brightnessDir = (brightnessDif < 0) - (brightnessDif > 0);
+    uint16_t delayDuration = (fadeDuration != 0) ? (fadeDuration / abs(brightnessDif)) : 1;
     while (curBrightness != newBrightness) {
         curBrightness += brightnessDir;
         display->setPanelBrightness(curBrightness);
-        delay(1);
+        delay(delayDuration);
     }
 }
 
 // Draws a bitmap
-void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
+void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color=0xffff) {
     if (width % 8 != 0) {
         width = ((width / 8) + 1) * 8;
     }
@@ -318,8 +320,8 @@ void setup() {
     // logStatusMessage("Weather recvd!");
 
     // logStatusMessage("Setting up watchdog...");
-    // esp_task_wdt_init(WDT_TIMEOUT, true);
-    // esp_task_wdt_add(NULL);
+    esp_task_wdt_init(WDT_TIMEOUT, true);
+    esp_task_wdt_add(NULL);
     // logStatusMessage("Watchdog set up!");
 
     // logStatusMessage(WiFi.localIP().toString());
@@ -338,9 +340,6 @@ void setup() {
         &Task1,         /* Task handle to keep track of created task */
         0               /* pin task to core 0 */
     );
-    
-    // display_update_enable(true);
-    delay(3000);
 }
 
 void loop() {
@@ -371,10 +370,10 @@ void loop() {
 
     if (millis() - lastLuxUpdate > lightCheck) {
         float lux = lightMeter.readLightLevel();
-        int8_t newBrightness = min(max(static_cast<int>((lux)+0), 5), 64);    // Set max between 5-64
+        uint8_t newBrightness = min(max(static_cast<int>((lux)*2), 5), 64);    // Set max between 5-64
         if (newBrightness != lastBrightness) {   
             ESP_LOGD("Light Sensor", "Lux: %f", lux);
-            ESP_LOGD("Light Sensor", "Brightness: %u", curBrightness);
+            ESP_LOGD("Light Sensor", "Brightness: %u", newBrightness);
             fadeBrightness(lastBrightness, newBrightness);
             lastBrightness = newBrightness;
         }
@@ -382,7 +381,7 @@ void loop() {
     }
 
     // Reset the watchdog timer as long as the main task is running
-    // esp_task_wdt_reset();
+    esp_task_wdt_reset();
     delay(30);
 }
 

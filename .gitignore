@@ -1,3 +1,5 @@
 .pio
 .vscode
 include/secrets.h
+diagram.json
+wokwi.toml

@@ -24,6 +24,10 @@ void diplayInit() {
                             CHAIN_LENGTH,   // chain length
                             _pins           // pin mapping
     );
+    // mxconfig.latch_blanking = 4;
+    // mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M;
+    // mxconfig.driver = HUB75_I2S_CFG::FM6124;
+    mxconfig.clkphase = false;
 
   // Create matrix object
   display = new MatrixPanel_I2S_DMA(mxconfig);

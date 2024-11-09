@@ -54,8 +54,8 @@ LastFMClient::LastFMClient(String username, String apiKey) {
 void LastFMClient::setup() {
     // Attempt to connect to WiFi network:
     ESP_LOGI("wifi", "Connecting");
-    WiFi.begin(SECRET_SSID, SECRET_PASS);
-    while(WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(SECRET_SSID, SECRET_PASS, 6);
+    while (WiFi.status() != WL_CONNECTED) {
         ESP_LOGI("wifi", ".");
         delay(1000);
     }
@@ -114,14 +114,14 @@ uint16_t LastFMClient::getReqAlbum() {
 
     // Parse the JSON
     ESP_LOGV("lastfmAPI", "Parsing");
-    StaticJsonDocument<128> filter;
+    JsonDocument filter;
 
-    JsonObject filter_recenttracks = filter["recenttracks"]["track"].createNestedObject();
+    JsonObject filter_recenttracks = filter["recenttracks"]["track"].add<JsonObject>();
     filter_recenttracks["image"][0]["#text"] = true;
     filter_recenttracks["@attr"]["nowplaying"] = true;
     // serializeJson(filter, Serial);   // Prints JSON to Serial
 
-    StaticJsonDocument<1536> doc;
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, resp, DeserializationOption::Filter(filter));
 
     if (error) {
