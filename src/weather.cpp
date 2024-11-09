@@ -168,8 +168,8 @@ void displayWeatherForecast() {
 
 void displayWeatherData() {
   displayTodaysWeather();
-  displayTodaysTempRange();
-  displayWeatherForecast();
+//   displayTodaysTempRange();
+//   displayWeatherForecast();
 }
 
 //Source: https://github.com/witnessmenow/LED-Matrix-Display-Examples/blob/master/LED-Matrix-Mario-Display/LED-Matrix-Mario-Display.ino
@@ -233,9 +233,9 @@ int accuWeatherIconMapping(int icon) {
 void getAccuWeatherData() {
   HTTPClient http;
   char url[256];
-  DynamicJsonDocument doc(16384); // Might be overkill, since the Accuweather JSONs are about 3-5K in length - but better safe...
+  JsonDocument doc; // Might be overkill, since the Accuweather JSONs are about 3-5K in length - but better safe...
 
-  StaticJsonDocument<300> filter;
+  JsonDocument filter;
   filter["DailyForecasts"][0]["Date"] = true;
   filter["DailyForecasts"][0]["Temperature"]["Minimum"]["Value"] = true;
   filter["DailyForecasts"][0]["Temperature"]["Maximum"]["Value"] = true;
@@ -276,7 +276,7 @@ void getAccuWeatherData() {
   doc.shrinkToFit();
 
   //Just in case we need to debug...
-  //serializeJsonPretty(doc, Serial);
+  serializeJsonPretty(doc, Serial);
 
   //Populate the variables: 
   minTempToday = round( double(doc["DailyForecasts"][0]["Temperature"]["Minimum"]["Value"]) );
@@ -300,8 +300,8 @@ void getOpenWeatherData() { /*
 
   
   // Allocate the largest possible document (platform dependent)
-  // DynamicJsonDocument doc(ESP.getMaxFreeBlockSize());
-  DynamicJsonDocument doc(8192);
+  // JsonDocument doc;
+  JsonDocument doc;
 
   http.useHTTP10(true);
   http.begin(url);

@@ -41,7 +41,7 @@ String LASTFM_USERNAME = USERNAME;
 
 // Globals
 long callFrequency = 5000;  // How often to check LastFM in ms
-long stopDuration = 1000*60*5;  // When to stop displaying cover art after stopping scrobbling in ms
+long stopDuration = 1000;   // When to stop displaying cover art after stopping scrobbling in ms
 
 LastFMClient client(LASTFM_USERNAME, LASTFM_KEY);
 
@@ -49,8 +49,20 @@ void displayUpdater();
 
 uint8_t* prevImage = nullptr;
 
+// Fades brightness to new brightness value of display
+void fadeBrightness(uint8_t curBrightness, uint8_t newBrightness, uint16_t fadeDuration=0) {
+    int8_t brightnessDif = (curBrightness-newBrightness);
+    int8_t brightnessDir = (brightnessDif < 0) - (brightnessDif > 0);
+    uint16_t delayDuration = (fadeDuration != 0) ? (fadeDuration / abs(brightnessDif)) : 1;
+    while (curBrightness != newBrightness) {
+        curBrightness += brightnessDir;
+        display->setPanelBrightness(curBrightness);
+        delay(delayDuration);
+    }
+}
+
 // Draws a bitmap
-void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
+void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color=0xffff) {
     if (width % 8 != 0) {
         width = ((width / 8) + 1) * 8;
     }
@@ -67,7 +79,8 @@ void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t c
 }
 
 // Draws the bitmap using RGB565
-void drawBMP_565(uint8_t* image, int xpos, int ypos) {
+void drawBMP_565(uint8_t* image, uint16_t xpos, uint16_t ypos) {
+    display->clearScreen();
     ESP_LOGI("draw", "Generating Image...");
 
     uint8_t* curPixel = image;
@@ -87,6 +100,7 @@ void drawBMP_565(uint8_t* image, int xpos, int ypos) {
                 // float h = hsl_color.H;
                 // float s = hsl_color.S;
                 // float l = hsl_color.L;
+                ESP_LOGV("draw", "R: %u G: %u B: %u", r, g, b);
 
                 uint8_t prev_r = 0;
                 uint8_t prev_g = 0;
@@ -137,7 +151,7 @@ void drawBMP_565(uint8_t* image, int xpos, int ypos) {
 }
 
 //Draws the bitmap using RGB888
-void drawBMP_888(uint8_t* image, int xpos, int ypos) {
+void drawBMP_888(uint8_t* image, uint16_t xpos, uint16_t ypos) {
     // while ( JpegDec.read() == 1) {
     //     uint16_t *pImg;
     //     pImg = JpegDec.pImage;
@@ -247,22 +261,28 @@ void downloadImage(void* pvParameters) {
 }
 
 void setup() {
-    // Initialize serial and wait for port to open
+    // Initialize serial
     Serial.begin(115200);
-    delay(3000);
+    
+    // Turn off blue LED
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
     diplayInit();
+    display->setRotation(3);
 
-    logStatusMessage("Setting up LastFM Client...");
+    logStatusMessage("LastFM...");
     client.setup();
     logStatusMessage("LastFM connected!");
 
-    logStatusMessage("Getting time...");
+    logStatusMessage("Time...");
     configTime(TIMEZONE_DELTA_SEC, TIMEZONE_DST_SEC, "ro.pool.ntp.org");
     lastNTPUpdate = millis();
-    logStatusMessage("Time acquired!");
+    if (getLocalTime(&timeinfo)) {
+        logStatusMessage("Time!");
+    } else {
+        logStatusMessage("No time!");
+    }
 
     // logStatusMessage("Getting weather...");
     // getAccuWeatherData();
@@ -270,8 +290,8 @@ void setup() {
     // logStatusMessage("Weather recvd!");
 
     // logStatusMessage("Setting up watchdog...");
-    // esp_task_wdt_init(WDT_TIMEOUT, true);
-    // esp_task_wdt_add(NULL);
+    esp_task_wdt_init(WDT_TIMEOUT, true);
+    esp_task_wdt_add(NULL);
     // logStatusMessage("Watchdog set up!");
 
     // logStatusMessage(WiFi.localIP().toString());
@@ -287,6 +307,7 @@ void setup() {
         display->setPanelBrightness(BRIGHTNESS);        // Full brightness during the day
     }
     
+    // Put downloadImage function on seperate core
     xTaskCreatePinnedToCore(
         downloadImage,  /* Task function. */
         "Task1",        /* name of task. */
@@ -337,7 +358,7 @@ void loop() {
     }
 
     // Reset the watchdog timer as long as the main task is running
-    // esp_task_wdt_reset();
+    esp_task_wdt_reset();
     delay(30);
 }
 

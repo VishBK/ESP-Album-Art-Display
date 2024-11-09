@@ -9,9 +9,9 @@ const int kNetworkTimeout = 30*1000;
 // Number of milliseconds to wait if no data is available before trying again
 const int kNetworkDelay = 500;
 
+const char* server = "ws.audioscrobbler.com";
+
 LastFMClient::LastFMClient(String username, String apiKey) {
-    // http.setTimeout(kNetworkTimeout);
-    // http.setConnectTimeout(kNetworkTimeout);
     this->username = username;
     this->apiKey = apiKey;
 }
@@ -19,13 +19,13 @@ LastFMClient::LastFMClient(String username, String apiKey) {
 void LastFMClient::setup() {
     // Attempt to connect to WiFi network:
     ESP_LOGI("wifi", "Connecting");
-    WiFi.begin(SECRET_SSID, SECRET_PASS);
-    while(WiFi.status() != WL_CONNECTED) {
-        delay(500);
+    WiFi.begin(SECRET_SSID, SECRET_PASS, 6);
+    while (WiFi.status() != WL_CONNECTED) {
         ESP_LOGI("wifi", ".");
+        delay(1000);
     }
-    ESP_LOGI("wifi", "Connected to WiFi network with IP Address: %s", WiFi.localIP());
-    // c.setCACert(lastfm_cert);
+    WiFi.setAutoReconnect(true);
+    ESP_LOGI("wifi", "Connected to WiFi network with IP Address: %s", WiFi.localIP().toString());
 }
 
 void blinkLED() {
@@ -45,65 +45,46 @@ uint16_t LastFMClient::update(LastFMData *data) {
 
 uint16_t LastFMClient::getReqAlbum() {
     const String kFullname = String("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&api_key=") + API_KEY + "&user=" + USERNAME + "&limit=1&format=json";
-    // const String kFullname = String("http://album-art-display.herokuapp.com/get_latest_track_image_url");
-    // Name of the server to connect to
-    // const String kHostname = "ws.audioscrobbler.com";
-    // Path to download (this is the bit after the hostname in the URL)
-    // const String kUrl = String("/2.0/?method=user.getrecenttracks&format=json&limit=1") + "&user=" + this->username + "&api_key=" + this->apiKey;
-    // const String kPathname = "/2.0/";
-    // const String kQuery = String("?method=user.getrecenttracks&format=json&limit=1") + "&user=" + this->username + "&api_key=" + this->apiKey;
-    // HttpClient http = HttpClient(c, kHostname);
     HTTPClient http;
-    // http.useHTTP10(true);
     int httpResponseCode = 0;
     uint8_t badRequestCount = 0;
     String resp = "";
     
-    ESP_LOGD("lastfmAPI", "\nStarting GET call with: %s", kFullname);
-    // ESP_LOGD("lastfmAPI", "%s", kHostname+kUrl);
-    // configure server and url
-    // http.begin(kHostname+kUrl, ca_cert);
-
     // start request
-    while (httpResponseCode <= 0) {
+    while (true) {
         // if (badRequestCount >= 10) ESP.restart();
-        // Check WiFi connection status
-        if (WiFi.status() == WL_CONNECTED) {
-            // Your Domain name with URL path or IP address with path
-            http.begin(kFullname);            
-            // http.addHeader("Content-Type", "application/json");
-            http.addHeader("User-Agent", "ESP32");
-            http.setTimeout(2500);
-            http.setConnectTimeout(2500);
-            // Send HTTP GET request
-            httpResponseCode = http.GET();
+        if (!c.connect(server, 443))
+            ESP_LOGE("lastfmAPI", "Server connection failed!");
+        else {
+            ESP_LOGV("lastfmAPI", "Connected to server!");
 
+            http.begin(kFullname);
+            httpResponseCode = http.GET();
             if (httpResponseCode > 0) {
-                ESP_LOGD("lastfmAPI", "HTTP Response code: %s", httpResponseCode);
+                ESP_LOGD("lastfmAPI", "HTTP Response code: %i", httpResponseCode);
                 resp = http.getString();
                 break;
             } else {
-                ESP_LOGE("lastfmAPI", "Error %s: %s", httpResponseCode, http.errorToString(httpResponseCode));
+                ESP_LOGE("lastfmAPI", "Error %i: %s", httpResponseCode, http.errorToString(httpResponseCode));
                 blinkLED();
                 badRequestCount++;
             }
-        } else {
-            ESP_LOGE("lastfmAPI", "WiFi Disconnected");
         }
         delay(kNetworkDelay);
     }
     http.end();
+    c.stop();
 
     // Parse the JSON
     ESP_LOGV("lastfmAPI", "Parsing");
-    StaticJsonDocument<128> filter;
+    JsonDocument filter;
 
-    JsonObject filter_recenttracks = filter["recenttracks"]["track"].createNestedObject();
+    JsonObject filter_recenttracks = filter["recenttracks"]["track"].add<JsonObject>();
     filter_recenttracks["image"][0]["#text"] = true;
     filter_recenttracks["@attr"]["nowplaying"] = true;
-    serializeJson(filter, Serial);
+    // serializeJson(filter, Serial);   // Prints JSON to Serial
 
-    StaticJsonDocument<1536> doc;
+    JsonDocument doc;
     DeserializationError error = deserializeJson(doc, resp, DeserializationOption::Filter(filter));
 
     if (error) {
@@ -122,8 +103,8 @@ uint16_t LastFMClient::getReqAlbum() {
     // imageLink = doc["url"].as<const char*>();
     // data->image174Href = parsed["image"][2]["#text"];
     // data->image300Href = parsed["image"][3]["#text"];
-    serializeJson(parsed, Serial);
-    
+
+    // serializeJson(parsed, Serial);
     ESP_LOGV("lastfmAPI", "\nParsed JSON");
 
     return httpResponseCode;
@@ -131,19 +112,11 @@ uint16_t LastFMClient::getReqAlbum() {
 
 uint8_t* LastFMClient::getReqBMP(String imageUrl) {
     const String kFullname = String("http://album-art-display.herokuapp.com/get_bmp?color_depth=565&url=") + imageUrl;
-    // Name of the server to connect to
-    // const String kHostname = "album-art-display.herokuapp.com";
-    // Path to download (this is the bit after the hostname in the URL)
-    // const String kUrl = String("/get_bmp?") + "url=" + imageUrl;
-    // HttpClient http = HttpClient(c, kHostname);
+
     isDataCall = true;
-    // String resp = "";
     uint8_t badRequestCount = 0;
     uint16_t sizeImageBytes = 64*64*2;
     uint8_t* resp = (uint8_t*)(malloc(sizeof(uint8_t) * sizeImageBytes));
-
-    ESP_LOGD("imageAPI", "Starting GET call with: %s", kFullname);
-    // ESP_LOGD("imageAPI", "%s", kHostname+kUrl);
 
     HTTPClient http;
 

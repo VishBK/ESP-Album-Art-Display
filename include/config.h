@@ -18,7 +18,11 @@
 // Screen positioning settings
 // Panel size
 #define PANEL_WIDTH 64
-#define PANEL_HEIGHT 64
+#define PANEL_HEIGHT 64  	// Panel height of 64 will required PIN_E to be defined.
+#define PANELS_NUMBER 1 	// Number of chained panels, if just a single panel, obviously set to 1
+
+#define PANE_WIDTH PANEL_WIDTH * PANELS_NUMBER
+#define PANE_HEIGHT PANEL_HEIGHT
 
 #define BRIGHTNESS 16   // 0-64
 #define NIGHT_MODE_TIME 1   // Time to lower brightness
@@ -56,8 +60,8 @@
 // Log messages at the bottom
 #define LOG_MESSAGE_COLOR ((0xFF & 0xF8) << 8) | ((0x00 & 0xFC) << 3) | (0x00 >> 3)
 
-#define BITMAP_X 0
-#define BITMAP_Y 44
+#define BITMAP_X 1
+#define BITMAP_Y 21
 
 #define HEARTBEAT_X 120
 #define HEARTBEAT_Y 21
