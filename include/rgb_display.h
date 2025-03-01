@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-// Pins for Faptastic's LED Matrix
+// Pins for Codetastic's LED Matrix
 #define R1_PIN 23
 #define B1_PIN 22
 #define R2_PIN 21
@@ -23,7 +23,7 @@
 #define D_PIN 27
 #define LAT_PIN 14
 
-#define NUM_LEDS MATRIX_HEIGHT*MATRIX_WIDTH
+#define NUM_LEDS PANEL_HEIGHT*PANEL_WIDTH
 
 uint16_t colorWheel(uint8_t pos); 
 //void drawText(int colorWheelOffset);

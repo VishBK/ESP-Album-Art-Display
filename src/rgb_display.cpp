@@ -19,10 +19,10 @@ uint16_t colorWheel(uint8_t pos) {
 void diplayInit() {
     HUB75_I2S_CFG::i2s_pins _pins={R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN, A_PIN, B_PIN, C_PIN, D_PIN, E_PIN, LAT_PIN, OE_PIN, CLK_PIN};
     HUB75_I2S_CFG mxconfig(
-                            PANEL_WIDTH,    // width
-                            PANEL_HEIGHT,   // height
-                            CHAIN_LENGTH,   // chain length
-                            _pins           // pin mapping
+        PANEL_WIDTH,    // width
+        PANEL_HEIGHT,   // height
+        CHAIN_LENGTH,   // chain length
+        _pins           // pin mapping
     );
     // mxconfig.latch_blanking = 4;
     // mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M;
@@ -34,7 +34,7 @@ void diplayInit() {
 
   // Allocate memory and start DMA display
   if (not display->begin()) Serial.println("****** I2S memory allocation failed ***********");
-  
+
   display->setPanelBrightness(BRIGHTNESS);
 }
 

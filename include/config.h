@@ -4,13 +4,14 @@
 //#define MQTT_USE_SSL 1
 //#define USE_ANDROID_AP 1
 
-// How often we refresh the time from the NTP server
-#define NTP_REFRESH_INTERVAL_SEC 60*60
+// Time settings
+#define NTP_REFRESH_INTERVAL_SEC 60*60  // How often we refresh the time from the NTP server
+#define TIMEZONE_DELTA_SEC 3600 * -6    // Timezone difference from GMT, expressed in seconds
+#define TIMEZONE_DST_SEC 3600   // DST delta to apply
 
-// Timezone difference from GMT, expressed in seconds
-#define TIMEZONE_DELTA_SEC 3600 * -5
-// DST delta to apply
-#define TIMEZONE_DST_SEC 3600
+// Scrobbling settings
+#define CALL_FREQUENCY 5000     // How often to check LastFM in ms
+#define STOP_DURATION 1000*5    // When to stop displaying cover art after stopping scrobbling in ms
 
 // How long are informational messages kept on screen
 #define LOG_MESSAGE_PERSISTENCE_MSEC 30000
@@ -18,13 +19,15 @@
 // Screen positioning settings
 // Panel size
 #define PANEL_WIDTH 64
-#define PANEL_HEIGHT 64  	// Panel height of 64 will required PIN_E to be defined.
+#define PANEL_HEIGHT 64  	// Panel height of 64 will required PIN_E to be defined
 #define PANELS_NUMBER 1 	// Number of chained panels, if just a single panel, obviously set to 1
 
 #define PANE_WIDTH PANEL_WIDTH * PANELS_NUMBER
 #define PANE_HEIGHT PANEL_HEIGHT
 
 #define BRIGHTNESS 16   // 0-64
+#define LIGHT_CHECK 1000    // How often to check for ambient light to adjust the display brightness
+
 
 // Clock
 #define CLOCK_X 6
@@ -40,7 +43,7 @@
 // Day of week
 #define DOW_X 6
 #define DOW_Y 1
-// Date
+// Date positions
 #define DATE_X DOW_X+23
 #define DATE_Y DOW_Y
 //Width and height are for both DATE and DOW
