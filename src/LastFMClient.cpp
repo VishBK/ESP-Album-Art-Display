@@ -1,23 +1,16 @@
 #include <ArduinoJson.h>
-#include <WiFi.h>
 #include <StreamUtils.h>
+#include <WiFi.h>
 
 #include "LastFMClient.h"
 
-// Number of milliseconds to wait without receiving any data before we give up
-const int kNetworkTimeout = 30*1000;
 // Number of milliseconds to wait if no data is available before trying again
 const int kNetworkDelay = 500;
 
 const char* server = "ws.audioscrobbler.com";
 
-LastFMClient::LastFMClient(String username, String apiKey) {
-    this->username = username;
-    this->apiKey = apiKey;
-}
-
-void LastFMClient::setup() {
-    // Attempt to connect to WiFi network:
+// Attempt to connect to WiFi network
+void connectWiFi() {
     ESP_LOGI("wifi", "Connecting");
     WiFi.begin(SECRET_SSID, SECRET_PASS, 6);
     while (WiFi.status() != WL_CONNECTED) {
@@ -35,6 +28,15 @@ void blinkLED() {
         digitalWrite(LED_BUILTIN,LOW);
         delay(250);
     }
+}
+
+LastFMClient::LastFMClient(String username, String apiKey) {
+    this->username = username;
+    this->apiKey = apiKey;
+}
+
+void LastFMClient::setup() {
+    connectWiFi();
 }
 
 uint16_t LastFMClient::update(LastFMData *data) {
@@ -111,85 +113,76 @@ uint16_t LastFMClient::getReqAlbum() {
 }
 
 uint8_t* LastFMClient::getReqBMP(String imageUrl) {
-    const String kFullname = String("http://album-art-display.herokuapp.com/get_bmp?color_depth=565&url=") + imageUrl;
+    ESP_LOGV("imageDec", "Starting Decode");
+    // https -> http, end url with .png
+    if (imageUrl.startsWith("https")) {
+        imageUrl.remove(4,1);
+    }
+    if (!imageUrl.endsWith(".png")) {
+        imageUrl.remove(imageUrl.lastIndexOf("."));
+        imageUrl += ".png";
+    }
 
-    isDataCall = true;
     uint8_t badRequestCount = 0;
-    uint16_t sizeImageBytes = 64*64*2;
-    uint8_t* resp = (uint8_t*)(malloc(sizeof(uint8_t) * sizeImageBytes));
-
+    uint8_t* imgBuf;
+    uint8_t* resp;
     HTTPClient http;
 
     // Start request 
-    int httpResponseCode = 0;        
-    while (httpResponseCode <= 0) {
+    int httpResponseCode = -1;
+    while (httpResponseCode < 0) {
         // if (badRequestCount >= 10) ESP.restart();
         // Check WiFi connection status
         if (WiFi.status() == WL_CONNECTED) {
-            http.begin(kFullname);
+            http.begin(imageUrl);
             http.addHeader("User-Agent", "ESP32");
             // start connection and send HTTP header
             httpResponseCode = http.GET();
             if (httpResponseCode > 0) {
-                // HTTP header has been send and Server response header has been handled
-                ESP_LOGD("imageAPI", "GET code: %d\n", httpResponseCode);
+                // HTTP header has been sent and Server response header has been handled
+                ESP_LOGD("imageDec", "GET code: %d\n", httpResponseCode);
 
                 // file found at server
                 if (httpResponseCode == HTTP_CODE_OK) {
+                    int sizeImageBytes = http.getSize();
+                    resp = (uint8_t*)(malloc(sizeof(uint8_t)*sizeImageBytes));
 
-                    // // get length of document (is -1 when Server sends no Content-Length header)
-                    // int len = http.getSize();
-
-                    // int readBytes = 0;
-                    
-                    // // create buffer for read
-                    // uint8_t buff[128] = { 0 };
-
-                    // // get tcp stream
-                    // WiFiClient* stream = http.getStreamPtr();
+                    // get tcp stream
                     WriteBufferingStream bufferedHttpClient{http.getStream(), 1024};
-                    // bufferedHttpClient.flush();
-
                     bufferedHttpClient.readBytes((char*)resp, sizeImageBytes);
+                    bufferedHttpClient.flush();
+                    ESP_LOGV("imageDec", "Connection closed or file end\n");
 
-                    // read all data from server
-                    // while (http.connected() && (len > 0 || len == -1)) {
-                    //     // ESP_LOGD("imageAPI", "%i", len);
-                    //     // get available data size
-                    //     size_t size = stream->available();
-
-                    //     if (size) {
-                    //         // read up to 128 byte
-                    //         int c = stream->readBytes(buff, ((size > sizeof(buff)) ? sizeof(buff) : size));
-
-                    //         // write it to Serial
-                    //         // ESP_LOGD("imageAPI", "%i, %i", resp, c);
-                    //         for (int i = 0; i < c; i++) {
-                    //             resp[i+readBytes] = buff[i];
-                    //         }
-                    //         readBytes += c;
-
-                    //         if (len > 0) {
-                    //             len -= c;
-                    //         }
-                    //     }
-                    //     delay(1);
-                    // }
-                    ESP_LOGD("imageAPI", "\nconnection closed or file end.\n");
-                    break;
+                    if (memcmp(resp, pngHeader, 16) == 0) { // Check PNG header
+                        // Start decoding PNG                            
+                        ESP_LOGD("imageDec", "Decoding\n");
+                        if (pngDec.openRAM(resp, sizeImageBytes, NULL) == PNG_SUCCESS) {
+                            pngDec.setBuffer((uint8_t *)malloc(pngDec.getBufferSize()));
+                            pngDec.decode(NULL, 0);
+                        } else {
+                            ESP_LOGE("imageDec", "PNG decode failed");
+                        }
+                        free(resp);
+                        break;
+                    } else {
+                        httpResponseCode = -1;
+                        free(resp);
+                    }
                 }
             } else {
-                ESP_LOGE("imageAPI", "GET failed, error: %s", http.errorToString(httpResponseCode).c_str());
+                ESP_LOGE("imageDec", "GET failed, error: %s", http.errorToString(httpResponseCode).c_str());
                 blinkLED();
                 badRequestCount++;
             }
         } else {
-            ESP_LOGE("imageAPI", "WiFi Disconnected");
+            ESP_LOGE("imageDec", "WiFi Disconnected");
+            connectWiFi();
         }
         delay(kNetworkDelay);
     }
     http.end();
-    // ESP_LOGD("imageAPI", "0x%x\n", (resp[0]<<8) + resp[1]);
-    ESP_LOGD("imageAPI", "0x%x\n", (resp[0]<<16) + (resp[1]<<8) + resp[2]);
-    return resp;
+    imgBuf = pngDec.getBuffer();
+    ESP_LOGD("imageDec", "0x%x\n", (imgBuf[0]<<16) + (imgBuf[1]<<8) + imgBuf[2]);
+
+    return imgBuf;
 }

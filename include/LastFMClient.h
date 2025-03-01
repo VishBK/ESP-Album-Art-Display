@@ -1,7 +1,8 @@
 #pragma once
 #include <Arduino.h>
-#include <HTTPClient.h>
 #include <FS.h>
+#include <HTTPClient.h>
+#include <PNGDEC.h>
 #include <SPIFFS.h>
 #include <WiFi.h>
 // #include <WiFiClientSecure.h>
@@ -33,6 +34,10 @@ class LastFMClient {
     // HttpClient http;
     WiFiClient c;
     // WiFiClientSecure c;
+    PNG pngDec;
+    const uint8_t pngHeader[16] = {
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52
+    };
   
   public:
     LastFMClient(String username, String apiKey);
