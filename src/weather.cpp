@@ -200,15 +200,6 @@ void drawBitmap(int startx, int starty, int width, int height, uint32_t *bitmap,
   else drawBitmap(startx, starty, width, height, bitmap);
 }
 
-void drawHeartBeat() {
-  if (!heartBeat) {
-    display->fillRect(HEARTBEAT_X, HEARTBEAT_Y, 8, 8, 0);
-  }
-  else {
-    drawBitmap(HEARTBEAT_X, HEARTBEAT_Y, 8, 8, heart_8x8);
-  }
-}
-
 // Return a mapping from the Accuweather icons to the
 // internal icons: 
 // 0 - sun
@@ -270,7 +261,7 @@ void getAccuWeatherData() {
 
   if (error) {
     ESP_LOGE("accuweather", "deserialization failed: %s", error.f_str());
-    logStatusMessage("Weather data error!");
+    displayText("Weather data error!");
   }
 
   doc.shrinkToFit();

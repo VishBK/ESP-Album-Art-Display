@@ -10,7 +10,8 @@ class Digit {
     void setColor(uint16_t color);
     void Draw(byte value);
     void Morph(byte newValue);
-    byte Value();
+    byte getValue();
+    void setValue(byte value);
     void DrawColon(uint16_t c);
     
   private:

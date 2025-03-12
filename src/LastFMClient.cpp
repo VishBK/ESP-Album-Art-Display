@@ -12,13 +12,14 @@ const char* server = "ws.audioscrobbler.com";
 // Attempt to connect to WiFi network
 void connectWiFi() {
     ESP_LOGI("wifi", "Connecting");
-    WiFi.begin(SECRET_SSID, SECRET_PASS, 6);
+    WiFi.begin(SECRET_SSID, SECRET_PASS);
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
     while (WiFi.status() != WL_CONNECTED) {
         ESP_LOGI("wifi", ".");
         delay(1000);
     }
     WiFi.setAutoReconnect(true);
-    ESP_LOGI("wifi", "Connected to WiFi network with IP Address: %s", WiFi.localIP().toString());
+    ESP_LOGI("wifi", "Connected to WiFi network with IP Address: %s", WiFi.localIP().toString().c_str());
 }
 
 void blinkLED() {
@@ -114,10 +115,11 @@ uint16_t LastFMClient::getReqAlbum() {
 
 uint8_t* LastFMClient::getReqBMP(String imageUrl) {
     ESP_LOGV("imageDec", "Starting Decode");
-    // https -> http, end url with .png
+    // https -> http
     if (imageUrl.startsWith("https")) {
         imageUrl.remove(4,1);
     }
+    // Replace extension with png
     if (!imageUrl.endsWith(".png")) {
         imageUrl.remove(imageUrl.lastIndexOf("."));
         imageUrl += ".png";

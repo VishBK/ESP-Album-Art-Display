@@ -1,6 +1,5 @@
 // Displays album artwork of currently playing song from your LastFM account
 
-// #include <HTTPClient.h>
 #include <ESPNtpClient.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 #include <ESP_Color.h>
@@ -26,7 +25,6 @@ String currentImageUrl = "";
 long lastUpdate = 0;
 long lastScrobbling = 0;    // Last time isPlaying was true
 
-Ticker displayTicker;
 uint8_t prevHour;
 unsigned long prevEpoch;
 unsigned long lastNTPUpdate;
@@ -34,24 +32,10 @@ unsigned long lastWeatherUpdate;
 
 bool blinkOn;
 bool isClock = true; // Whether the clock should be displayed or not
-
+uint8_t* prevImage = nullptr;
 LastFMClient client(USERNAME, API_KEY);
 
 void displayUpdater();
-
-uint8_t* prevImage = nullptr;
-
-// Fades brightness to new brightness value of display
-void fadeBrightness(uint8_t curBrightness, uint8_t newBrightness, uint16_t fadeDuration=0) {
-    int8_t brightnessDif = (curBrightness-newBrightness);
-    int8_t brightnessDir = (brightnessDif < 0) - (brightnessDif > 0);
-    uint16_t delayDuration = (fadeDuration != 0) ? (fadeDuration / abs(brightnessDif)) : 1;
-    while (curBrightness != newBrightness) {
-        curBrightness += brightnessDir;
-        display->setPanelBrightness(curBrightness);
-        delay(delayDuration);
-    }
-}
 
 // Draws a bitmap
 void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color=0xffff) {
@@ -70,76 +54,6 @@ void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t c
     }
 }
 
-// Draws the bitmap using RGB565
-void drawBMP_565(uint8_t* image, uint16_t xpos, uint16_t ypos) {
-    ESP_LOGI("draw", "Generating Image...");
-
-    uint8_t* curPixel = image;
-    uint8_t* prevPixel = prevImage;
-    uint16_t counter = 0;
-    uint8_t fade_steps = 48;
-    for (uint8_t fade_count = 1; fade_count <= fade_steps; fade_count++) {    
-        for (uint16_t y = ypos; y < MATRIX_HEIGHT; y++) {
-            for (uint16_t x = xpos; x < MATRIX_WIDTH; x++) {
-                uint16_t val = ((*curPixel)<<8) + (*(curPixel+1));
-                uint8_t r = 0;
-                uint8_t g = 0;
-                uint8_t b = 0;
-                display->color565to888(val, r, g, b);
-                // ESP_Color::Color cur_color(val);
-                // ESP_Color::HSLf hsl_color = cur_color.ToHsl(); 
-                // float h = hsl_color.H;
-                // float s = hsl_color.S;
-                // float l = hsl_color.L;
-                ESP_LOGV("draw", "R: %u G: %u B: %u", r, g, b);
-
-                uint8_t prev_r = 0;
-                uint8_t prev_g = 0;
-                uint8_t prev_b = 0;
-                // float prev_h = 0;
-                // float prev_s = 0;
-                // float prev_l = 0;
-                if (prevImage) {
-                    uint16_t prev_val = ((*prevPixel)<<8) + (*(prevPixel+1));
-                    display->color565to888(prev_val, prev_r, prev_g, prev_b);
-                    // ESP_Color::Color prev_color(prev_val);
-                    // ESP_Color::HSLf prev_hsl_color = prev_color.ToHsl();
-                    // prev_h = prev_hsl_color.H;
-                    // prev_s = prev_hsl_color.S;
-                    // prev_l = prev_hsl_color.L;
-                }
-                int8_t delta_r = r-prev_r;
-                int8_t delta_g = g-prev_g;
-                int8_t delta_b = b-prev_b;
-                // float delta_h = h-prev_h;
-                // float delta_s = s-prev_s;
-                // float delta_l = l-prev_l;
-                // ESP_Color::Color new_color = ESP_Color::Color::FromHsl(
-                //     prev_h+((delta_h*(fade_count))/fade_steps),
-                //     prev_s+((delta_s*(fade_count))/fade_steps),
-                //     prev_l+((delta_l*(fade_count))/fade_steps)
-                // );                
-                // display->drawPixelRGB888(x, y, new_color.R_Byte(), new_color.G_Byte(), new_color.B_Byte());
-                display->drawPixelRGB888(x, y,
-                    prev_r+((delta_r*(fade_count))/fade_steps),
-                    prev_g+((delta_g*(fade_count))/fade_steps),
-                    prev_b+((delta_b*(fade_count))/fade_steps));
-                curPixel += 2;
-                prevPixel += 2;
-                counter++;
-            }
-        }
-        prevPixel = prevImage;
-        curPixel = image;
-        counter = 0;
-        delay(1);
-    }
-    free(prevImage);
-    prevImage = image;
-    // free(image);
-    ESP_LOGI("draw", "Done generating");
-}
-
 //Draws the bitmap using RGB888
 void drawBMP_888(uint8_t* image, uint16_t xpos, uint16_t ypos) {
     ESP_LOGI("draw", "Generating Image...");
@@ -149,8 +63,8 @@ void drawBMP_888(uint8_t* image, uint16_t xpos, uint16_t ypos) {
     uint16_t counter = 0;
     uint8_t fade_steps = 48;
     for (uint8_t fade_count = 1; fade_count <= fade_steps; fade_count++) {    
-        for (uint16_t y = ypos; y < MATRIX_HEIGHT; y++) {
-            for (uint16_t x = xpos; x < MATRIX_WIDTH; x++) {
+        for (uint16_t y = ypos; y < PANEL_HEIGHT; y++) {
+            for (uint16_t x = xpos; x < PANEL_WIDTH; x++) {
                 uint8_t r = curPixel[0];
                 uint8_t g = curPixel[1];
                 uint8_t b = curPixel[2];
@@ -209,46 +123,51 @@ void drawBMP_888(uint8_t* image, uint16_t xpos, uint16_t ypos) {
     ESP_LOGI("draw", "Done generating");
 }
 
-// Download the image in a separate core from the display drawing
+// Download and display the image in a separate core
 void downloadImage(void* pvParameters) {
   while (true) {
+    // Check if a new album is playing every CALL_FREQUENCY ms
     if (millis() - lastUpdate >= CALL_FREQUENCY) {
         long startTime = millis();
         uint16_t responseCode = client.getReqAlbum();
         lastUpdate = millis();
+        // If music is currently playing, turn off the clock
         if (client.isPlaying) {
             isClock = false;
             lastScrobbling = lastUpdate;
         }
+        // If last time music played is after the STOP_DURATION or the clock needs to be shown
         if (lastUpdate - lastScrobbling >= STOP_DURATION || isClock) {
-            if (!isClock) {
-                display->clearScreen();   // Clear screen if displaying clock for first time
+            if (!isClock) {     // Clock is starting up after album art
+                // display->clearScreen();
+                drawColorDissolve(0x0, 250);
                 prevImage = nullptr;
-                clockStartingUp = true;
+                isClockStartingUp = true;
                 currentImageUrl = "";
                 displayUpdater();
             }
             isClock = true;
             continue;
-        } else {
+        } 
+        else {  // If music is still playing and the clock is not shown
             String newImageUrl = client.imageLink;
-            ESP_LOGD("download", "Updated Image: %s\n", newImageUrl.c_str());
-            ESP_LOGD("download", "isPlaying: %s\n", client.isPlaying ? "true" : "false");
+            ESP_LOGD("downloadImage", "Updated Image: %s\n", newImageUrl.c_str());
+            ESP_LOGD("downloadImage", "isPlaying: %s\n", client.isPlaying ? "true" : "false");
             if (!client.isPlaying || newImageUrl.length() == 0) {
                 continue;
             }
+            // If the updated image url is different from the current one (i.e., a different album is playing)
             else if ((newImageUrl != currentImageUrl) && (responseCode > 0)) {
-                ESP_LOGI("download", "New Image. Downloading it");
+                ESP_LOGI("downloadImage", "New Image. Downloading it");
                 uint8_t* bmp_bytes = client.getReqBMP(newImageUrl);
-                currentImageUrl = newImageUrl;                
-                // drawBMP_565(bmp_bytes, 0, 0);
-                drawBMP_888(bmp_bytes, 0, 0);
+                currentImageUrl = newImageUrl;
+                drawBmpDissolve(bmp_bytes, RGB8888, 350);
+                free(bmp_bytes);
             }
         }
-        long timeDelta = millis()-startTime;
-        ESP_LOGI("download", "\n====================================");
-        ESP_LOGI("download", "Took %lu milliseconds to draw image", timeDelta);
-        ESP_LOGI("download", "\n====================================");
+        ESP_LOGI("downloadImage", "\n====================================");
+        ESP_LOGI("downloadImage", "Took %lu ms to draw image", millis()-startTime);
+        ESP_LOGI("downloadImage", "\n====================================");
     }
     delay(1);
   }
@@ -265,38 +184,24 @@ void setup() {
     diplayInit();
     display->setRotation(3);
 
-    logStatusMessage("LastFM...");
+    displayText("LastFM...");
     client.setup();
-    logStatusMessage("LastFM connected!");
 
-    logStatusMessage("Time...");
+    displayText("Time...");
     configTime(TIMEZONE_DELTA_SEC, TIMEZONE_DST_SEC, "ro.pool.ntp.org");
     lastNTPUpdate = millis();
-    if (getLocalTime(&timeinfo)) {
-        logStatusMessage("Time!");
-    } else {
-        logStatusMessage("No time!");
-    }
+    if (!getLocalTime(&timeinfo)) displayText("Time get fail!");
 
-    // logStatusMessage("Getting weather...");
+    // displayText("Getting weather...");
     // getAccuWeatherData();
     // lastWeatherUpdate = millis();
-    // logStatusMessage("Weather recvd!");
+    // displayWeatherData();
 
-    // logStatusMessage("Setting up watchdog...");
     esp_task_wdt_init(WDT_TIMEOUT, true);
     esp_task_wdt_add(NULL);
-    // logStatusMessage("Watchdog set up!");
 
-    // logStatusMessage(WiFi.localIP().toString());
-    // drawTestBitmap();
-    // displayWeatherData();
-    
-    // displayTicker.attach_ms(30, displayUpdater);
-
-    if (!getLocalTime(&timeinfo)) logStatusMessage("Time get fail!");
     if (timeinfo.tm_hour >= NIGHT_MODE_TIME and timeinfo.tm_hour < DAY_MODE_TIME) {
-        display->setPanelBrightness(BRIGHTNESS*0.25);    // Quarter brightness at night
+        display->setPanelBrightness(BRIGHTNESS*0.25);   // Quarter brightness at night
     } else {
         display->setPanelBrightness(BRIGHTNESS);        // Full brightness during the day
     }
@@ -311,43 +216,34 @@ void setup() {
         &Task1,         /* Task handle to keep track of created task */
         0               /* pin task to core 0 */
     );
-    
-    // display_update_enable(true);
-    delay(3000);
 }
 
 void loop() {
     if (isClock) {
         // Periodically refresh NTP time
         if (millis() - lastNTPUpdate > 1000*NTP_REFRESH_INTERVAL_SEC) {
-            logStatusMessage("NTP Refresh");
+            displayText("NTP Refresh");
             configTime(TIMEZONE_DELTA_SEC, TIMEZONE_DST_SEC, "ro.pool.ntp.org");
             lastNTPUpdate = millis();
         }
 
         // Periodically refresh weather forecast
         // if (millis() - lastWeatherUpdate > 1000 * WEATHER_REFRESH_INTERVAL_SEC) {
-        //     logStatusMessage("Weather refresh");
+        //     displayText("Weather refresh");
         //     getAccuWeatherData();
         //     displayWeatherData();
         //     lastWeatherUpdate = millis();
         // }
 
-        // Do we need to clear the status message from the screen?
-        if (logMessageActive) {
-            if (millis() > messageDisplayMillis + LOG_MESSAGE_PERSISTENCE_MSEC) {
-                clearStatusMessage();
-            }
-        }
         displayUpdater();
     }
 
     if (prevHour != timeinfo.tm_hour) {
         prevHour = timeinfo.tm_hour;
         if (prevHour >= NIGHT_MODE_TIME and prevHour < DAY_MODE_TIME) {
-            display->setPanelBrightness(BRIGHTNESS*0.25);    // Quarter brightness at night
+            fadeBrightness(BRIGHTNESS, BRIGHTNESS*0.25);    // Quarter brightness at night
         } else {
-            display->setPanelBrightness(BRIGHTNESS);        // Full brightness during the day
+            fadeBrightness(BRIGHTNESS*0.25, BRIGHTNESS);    // Full brightness during the day
         }
     }
 
@@ -357,14 +253,15 @@ void loop() {
 }
 
 void displayUpdater() {
-  if (!getLocalTime(&timeinfo)) {
-    logStatusMessage("Time get fail!");
-    return;
-  }
+    if (!getLocalTime(&timeinfo)) {
+        displayText("Time get failed!", true);
+        return;
+    }
 
-  unsigned long epoch = mktime(&timeinfo);
-  if (epoch != prevEpoch) {
-    displayClock();
-    prevEpoch = epoch;
-  }
+    unsigned long epoch = mktime(&timeinfo);
+    if (epoch != prevEpoch) {
+        displayClock();
+        prevEpoch = epoch;
+    }
+    updateText();
 }

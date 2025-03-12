@@ -45,25 +45,35 @@ void displayClock() {
     int ss = timeinfo.tm_sec;
     delay(500);
 
-    if (clockStartingUp) { // If we didn't have a previous time, just draw it without morphing.
+    if (isClockStartingUp) { // If we didn't have a previous time, just draw it without morphing.
         //   digit0.Draw(ss % 10);
         //   digit1.Draw(ss / 10);
-        digit2.Draw(mm % 10); // Minutes ones digit
-        digit3.Draw(mm / 10); // Minutes tens digit
-        digit4.Draw(hh % 10); // Hours ones digit
-        digit5.Draw(hh / 10); // Hours tens digit
-        //   digit1.DrawColon(clockDigitColor);
+
+        // Set the values manually since setDigitsColor calls Draw()
+        digit2.setValue(mm % 10);   // Minutes ones digit
+        digit3.setValue(mm / 10);   // Minutes tens digit
+        digit4.setValue(hh % 10);   // Hours ones digit
+        digit5.setValue(hh / 10);   // Hours ones digit
+        // digit2.Draw(mm % 10); // Minutes ones digit
+        // digit3.Draw(mm / 10); // Minutes tens digit
+        // digit4.Draw(hh % 10); // Hours ones digit
+        // digit5.Draw(hh / 10); // Hours tens digit
+
+        uint8_t pos = round(((fmod(timeinfo.tm_hour+9.5,24)*60+mm)/((24*60)/255.)));
+        clockDigitColor = colorWheel(pos);
+        setDigitsColor(clockDigitColor);
         digit3.DrawColon(0xffff-clockDigitColor);
+
         displayDate();
-        clockStartingUp = false;
+        isClockStartingUp = false;
     } 
     else {
         // epoch changes every milliseconds, we only want to draw when digits actually change
-        if (ss!=prevss) { 
+        if (ss != prevss) { 
             // int s0 = ss % 10;
             // int s1 = ss / 10;
-            // if (s0!=digit0.Value()) digit0.Morph(s0);
-            // if (s1!=digit1.Value()) digit1.Morph(s1);
+            // if (s0!=digit0.getValue()) digit0.Morph(s0);
+            // if (s1!=digit1.getValue()) digit1.Morph(s1);
             // prevss = ss;
 
             // Blink colon
@@ -76,23 +86,23 @@ void displayClock() {
             }
         }
 
-        if (mm!=prevmm) {            
+        if (mm != prevmm) {            
             uint8_t pos = round(((fmod(timeinfo.tm_hour+9.5,24)*60+mm)/((24*60)/255.)));
             clockDigitColor = colorWheel(pos);
             setDigitsColor(clockDigitColor);   
             int m0 = mm % 10;
             int m1 = mm / 10;
-            if (m0!=digit2.Value()) digit2.Morph(m0);
-            if (m1!=digit3.Value()) digit3.Morph(m1);
+            if (m0 != digit2.getValue()) digit2.Morph(m0);
+            if (m1 != digit3.getValue()) digit3.Morph(m1);
             displayDate();
             prevmm = mm;
         }
       
-        if (hh!=prevhh) {
+        if (hh != prevhh) {
             int h0 = hh % 10;
             int h1 = hh / 10;
-            if (h0!=digit4.Value()) digit4.Morph(h0);
-            if (h1!=digit5.Value()) digit5.Morph(h1);
+            if (h0 != digit4.getValue()) digit4.Morph(h0);
+            if (h1 != digit5.getValue()) digit5.Morph(h1);
             prevhh = hh;
         }
     }

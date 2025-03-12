@@ -11,10 +11,10 @@
 
 // Scrobbling settings
 #define CALL_FREQUENCY 5000     // How often to check LastFM in ms
-#define STOP_DURATION 1000*5    // When to stop displaying cover art after stopping scrobbling in ms
+#define STOP_DURATION 1000*10   // When to stop displaying cover art after stopping scrobbling in ms
 
 // How long are informational messages kept on screen
-#define LOG_MESSAGE_PERSISTENCE_MSEC 30000
+#define TEXT_PERSISTENCE_MS 1000*10
 
 // Screen positioning settings
 // Panel size
@@ -46,9 +46,9 @@
 // Date positions
 #define DATE_X DOW_X+23
 #define DATE_Y DOW_Y
-//Width and height are for both DATE and DOW
+// Width and height are for both DATE and DOW
 #define DATE_WIDTH 52
-#define DATE_HEIGHT 18
+#define DATE_HEIGHT 8
 
 // Weather sensor data
 #define SENSOR_DATA_X 0
@@ -58,14 +58,10 @@
 #define SENSOR_DATA_COLOR ((0x00 & 0xF8) << 8) | ((0x8F & 0xFC) << 3) | (0x00 >> 3)
 #define SENSOR_ERROR_DATA_COLOR ((0xFF & 0xF8) << 8) | ((0x00 & 0xFC) << 3) | (0x00 >> 3)
 
-// Log messages at the bottom
-#define LOG_MESSAGE_COLOR ((0xFF & 0xF8) << 8) | ((0x00 & 0xFC) << 3) | (0x00 >> 3)
+#define TEXT_COLOR 0xF800
 
 #define BITMAP_X 1
 #define BITMAP_Y 21
-
-#define HEARTBEAT_X 120
-#define HEARTBEAT_Y 21
 
 // Watchdog settings
 #define WDT_TIMEOUT 60   // If the WDT is not reset within X seconds, reboot the unit

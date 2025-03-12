@@ -45,8 +45,12 @@ Digit::Digit(byte value, uint16_t xo, uint16_t yo, uint16_t color) {
   _color = color;
 }
 
-byte Digit::Value() {
+byte Digit::getValue() {
   return _value;
+}
+
+void Digit::setValue(byte value) {
+    _value = value;
 }
 
 void Digit::setColor(uint16_t color) {
